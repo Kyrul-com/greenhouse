@@ -1,266 +1,106 @@
-<!-- Smart Greenhouse Dashboard - single-file HTML
-     Features:
-     - Dark dashboard layout inspired by provided image
-     - Top KPI cards (Temperature, Humidity, Battery)
-     - Toggle controls for Pump / Mist / Fan
-     - Three time-series charts and one donut chart using Chart.js
-     - Simulated live data updates (JS) for demo
-
-     Save as dashboard.html and open in your browser.
--->
-
 <!doctype html>
 <html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Smart Greenhouse Dashboard</title>
-  <link rel="preconnect" href="https://fonts.googleapis.com">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
-    :root{
-      --bg:#0b1220;
-      --card:#0f1724;
-      --muted:#94a3b8;
-      --accent:#10b981; /* green */
-      --accent-2:#06b6d4;
-      --danger:#ef4444;
-      font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial;
-    }
-    *{box-sizing:border-box}
-    body{margin:0;background:linear-gradient(180deg,#07101a 0%, #071423 100%);color:#e6eef6}
-    .wrap{max-width:1200px;margin:24px auto;padding:20px}
-    header{display:flex;align-items:center;justify-content:space-between;margin-bottom:18px}
-    header h1{font-size:18px;margin:0}
-    .meta{font-size:13px;color:var(--muted)}
-
-    .grid{display:grid;grid-template-columns:repeat(12,1fr);gap:16px}
-
-    .card{background:var(--card);border-radius:12px;padding:16px;box-shadow:0 6px 20px rgba(2,6,23,0.6)}
-
-    /* KPI cards */
-    .kpi{grid-column:span 3;display:flex;flex-direction:column;gap:10px}
-    .kpi .value{font-size:22px;font-weight:600}
-    .progress{height:8px;background:rgba(255,255,255,0.06);border-radius:999px;overflow:hidden}
-    .progress > i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),var(--accent-2));}
-
-    /* Control card */
-    .controls{grid-column:span 6}
-    .controls .btns{display:flex;gap:10px}
-    .toggle{padding:10px 14px;border-radius:8px;background:rgba(255,255,255,0.03);cursor:pointer;user-select:none;display:inline-flex;align-items:center;gap:10px}
-    .toggle.active{background:linear-gradient(90deg, rgba(16,185,129,0.16), rgba(6,182,212,0.12));border:1px solid rgba(16,185,129,0.12)}
-
-    /* charts */
-    .chart-lg{grid-column:span 6}
-    .chart-sm{grid-column:span 6}
-    .full{grid-column:span 12}
-
-    .small-meta{font-size:12px;color:var(--muted)}
-
-    /* donut */
-    .donut-wrap{display:flex;align-items:center;gap:14px}
-
-    /* responsive */
-    @media (max-width:900px){
-      .kpi{grid-column:span 6}
-      .controls{grid-column:span 12}
-      .chart-lg,.chart-sm{grid-column:span 12}
-      .donut-wrap{flex-direction:column}
-    }
+    body { background-color: #0b1220; color: white; font-family: Arial, sans-serif; margin: 0; }
+    .container { max-width: 1200px; margin: auto; padding: 20px; }
+    h1 { font-size: 22px; margin-bottom: 20px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; }
+    .card { background-color: #141c2f; border-radius: 10px; padding: 20px; box-shadow: 0 0 10px rgba(0,0,0,0.3); }
+    canvas { width: 100%; height: 200px; }
+    .kpi { display: flex; flex-direction: column; gap: 10px; }
+    .value { font-size: 24px; font-weight: bold; }
   </style>
 </head>
 <body>
-  <div class="wrap">
-    <header>
-      <div>
-        <h1>Smart Greenhouse</h1>
-        <div class="meta">Realtime greenhouse telemetry • simulated demo</div>
-      </div>
-      <div class="meta" id="clock">--</div>
-    </header>
-
+  <div class="container">
+    <h1>Smart Greenhouse Dashboard</h1>
     <div class="grid">
-      <!-- KPIs -->
       <div class="card kpi">
-        <div class="small-meta">Temperature</div>
-        <div class="value" id="tempVal">24.9 °C</div>
-        <div class="small-meta">Current / target</div>
-        <div class="progress"><i id="tempProg" style="width:50%"></i></div>
+        <span>Temperature</span>
+        <span class="value" id="tempVal">-- °C</span>
       </div>
-
       <div class="card kpi">
-        <div class="small-meta">Humidity</div>
-        <div class="value" id="humVal">73.3 %</div>
-        <div class="small-meta">Soil moisture</div>
-        <div class="progress"><i id="humProg" style="width:73%"></i></div>
+        <span>Humidity</span>
+        <span class="value" id="humVal">-- %</span>
       </div>
-
       <div class="card kpi">
-        <div class="small-meta">Battery</div>
-        <div class="value" id="batVal">50 %</div>
-        <div class="small-meta">Solar charge</div>
-        <div class="progress"><i id="batProg" style="width:50%"></i></div>
+        <span>Battery</span>
+        <span class="value" id="batVal">-- %</span>
       </div>
+    </div>
 
-      <!-- Controls -->
-      <div class="card controls">
-        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-          <div class="small-meta">Pump · Mist · Fan</div>
-          <div class="small-meta">Request Mode: <strong id="reqMode">AUTO</strong></div>
-        </div>
-        <div class="btns">
-          <div class="toggle" id="btnPump">Pump</div>
-          <div class="toggle" id="btnMist">Mist</div>
-          <div class="toggle" id="btnFan">Fan</div>
-          <div style="flex:1"></div>
-          <div class="small-meta">Mode</div>
-          <select id="modeSelect" style="background:transparent;border-radius:8px;padding:8px;color:inherit;border:1px solid rgba(255,255,255,0.04)">
-            <option>AUTO</option>
-            <option>MANUAL</option>
-            <option>SCHEDULE</option>
-          </select>
-        </div>
+    <div class="grid" style="margin-top:20px;">
+      <div class="card">
+        <h3>Temperature (°C)</h3>
+        <canvas id="tempChart"></canvas>
       </div>
-
-      <!-- Small status card -->
-      <div class="card" style="grid-column:span 3">
-        <div class="small-meta">Status</div>
-        <div style="margin-top:12px">
-          <div class="small-meta">Pump: <strong id="statusPump">OFF</strong></div>
-          <div class="small-meta">Mist: <strong id="statusMist">OFF</strong></div>
-          <div class="small-meta">Fan: <strong id="statusFan">OFF</strong></div>
-        </div>
+      <div class="card">
+        <h3>Humidity (%)</h3>
+        <canvas id="humChart"></canvas>
       </div>
-
-      <!-- Charts -->
-      <div class="card chart-lg">
-        <div class="small-meta">Temperature (°C)</div>
-        <canvas id="tempChart" height="120"></canvas>
+      <div class="card">
+        <h3>Battery Level (%)</h3>
+        <canvas id="batChart"></canvas>
       </div>
-
-      <div class="card chart-lg">
-        <div class="small-meta">Humidity (%)</div>
-        <canvas id="humChart" height="120"></canvas>
-      </div>
-
-      <div class="card chart-sm">
-        <div class="small-meta">Power / Battery</div>
-        <canvas id="powerChart" height="120"></canvas>
-      </div>
-
-      <div class="card full">
-        <div style="display:flex;justify-content:space-between;align-items:center">
-          <div class="small-meta">Device usage breakdown</div>
-          <div class="small-meta">Last 24 hours</div>
-        </div>
-        <div style="display:flex;gap:20px;margin-top:12px;align-items:center">
-          <div style="width:180px"><canvas id="donut" height="140"></canvas></div>
-          <div style="flex:1">
-            <div class="small-meta">Legend</div>
-            <ul style="margin:8px 0 0 0;padding:0;list-style:none;display:flex;gap:12px">
-              <li class="small-meta">● Pump</li>
-              <li class="small-meta">● Mist</li>
-              <li class="small-meta">● Fan</li>
-            </ul>
-          </div>
-        </div>
-      </div>
-
     </div>
   </div>
 
-<script>
-// utilities
-function formatTime(d){return d.toLocaleTimeString();}
+  <script>
+    const tempCtx = document.getElementById('tempChart').getContext('2d');
+    const humCtx = document.getElementById('humChart').getContext('2d');
+    const batCtx = document.getElementById('batChart').getContext('2d');
 
-// clock
-const clock = document.getElementById('clock');
-setInterval(()=>{clock.textContent = new Date().toLocaleString();},1000);
+    const tempData = { labels: [], datasets: [{ label: 'Temperature', borderColor: '#10b981', data: [] }] };
+    const humData = { labels: [], datasets: [{ label: 'Humidity', borderColor: '#06b6d4', data: [] }] };
+    const batData = { labels: [], datasets: [{ label: 'Battery', borderColor: '#facc15', data: [] }] };
 
-// toggles
-function makeToggle(btnId, statusId){
-  const btn = document.getElementById(btnId);
-  const status = document.getElementById(statusId);
-  btn.addEventListener('click', ()=>{
-    btn.classList.toggle('active');
-    const active = btn.classList.contains('active');
-    status.textContent = active ? 'ON' : 'OFF';
-  });
-}
-makeToggle('btnPump','statusPump');
-makeToggle('btnMist','statusMist');
-makeToggle('btnFan','statusFan');
+    const config = {
+      type: 'line',
+      options: {
+        scales: { x: { display: false }, y: { min: 0, max: 100, grid: { color: 'rgba(255,255,255,0.1)' } } },
+        plugins: { legend: { labels: { color: 'white' } } },
+        elements: { point: { radius: 0 } },
+      }
+    };
 
-// Chart setup
-const labels = Array.from({length:30}, (_,i)=> i%5===0? `${i}h` : '');
+    const tempChart = new Chart(tempCtx, { ...config, data: tempData });
+    const humChart = new Chart(humCtx, { ...config, data: humData });
+    const batChart = new Chart(batCtx, { ...config, data: batData });
 
-function createLine(ctx, label, color){
-  return new Chart(ctx,{
-    type:'line',
-    data:{labels:labels,datasets:[{label:label,data:labels.map(()=>null),fill:false,tension:0.35,pointRadius:0}]},
-    options:{
-      animation:false,
-      plugins:{legend:{display:false}},
-      scales:{x:{display:false},y:{grid:{color:'rgba(255,255,255,0.03)'}}
+    function randomNum(base, range) {
+      return base + (Math.random() - 0.5) * range;
     }
-  });
-}
 
-const tempChart = createLine(document.getElementById('tempChart').getContext('2d'),'Temperature');
-const humChart = createLine(document.getElementById('humChart').getContext('2d'),'Humidity');
-const powerChart = createLine(document.getElementById('powerChart').getContext('2d'),'Power');
+    function updateData() {
+      const time = new Date().toLocaleTimeString();
+      const temp = randomNum(25, 5);
+      const hum = randomNum(70, 10);
+      const bat = randomNum(60, 5);
 
-// Donut
-const donut = new Chart(document.getElementById('donut').getContext('2d'),{
-  type:'doughnut',
-  data:{labels:['Pump','Mist','Fan'],datasets:[{data:[70,20,10],backgroundColor:['#0ea5a4','#06b6d4','#10b981']}]},
-  options:{plugins:{legend:{display:false}},cutout:'70%'}
-});
+      document.getElementById('tempVal').textContent = temp.toFixed(1) + ' °C';
+      document.getElementById('humVal').textContent = hum.toFixed(1) + ' %';
+      document.getElementById('batVal').textContent = bat.toFixed(1) + ' %';
 
-// Simulated telemetry
-let temp = 24.9, hum = 73.3, bat = 50;
-function pushPoint(chart, value){
-  chart.data.datasets[0].data.push(value);
-  if(chart.data.datasets[0].data.length>labels.length) chart.data.datasets[0].data.shift();
-  chart.update('none');
-}
+      const charts = [tempChart, humChart, batChart];
+      const values = [temp, hum, bat];
 
-function updateUI(){
-  // random walk
-  temp += (Math.random()-0.45)*0.4; temp = Math.max(15, Math.min(40, temp));
-  hum += (Math.random()-0.5)*1.2; hum = Math.max(10, Math.min(100, hum));
-  bat += (Math.random()-0.4)*0.6; bat = Math.max(0, Math.min(100, bat));
+      charts.forEach((chart, i) => {
+        chart.data.labels.push(time);
+        chart.data.datasets[0].data.push(values[i]);
+        if (chart.data.labels.length > 20) {
+          chart.data.labels.shift();
+          chart.data.datasets[0].data.shift();
+        }
+        chart.update();
+      });
+    }
 
-  document.getElementById('tempVal').textContent = temp.toFixed(1) + ' °C';
-  document.getElementById('humVal').textContent = hum.toFixed(1) + ' %';
-  document.getElementById('batVal').textContent = Math.round(bat) + ' %';
-
-  document.getElementById('tempProg').style.width = Math.min(100, (temp-10)/30*100) + '%';
-  document.getElementById('humProg').style.width = hum + '%';
-  document.getElementById('batProg').style.width = bat + '%';
-
-  pushPoint(tempChart, temp);
-  pushPoint(humChart, hum);
-  pushPoint(powerChart, Math.round(20 + Math.sin(Date.now()/5000)*10 + (100-bat)/4));
-
-  // donut simulate device usage shifts
-  const pump = Math.max(5, Math.round(60 + Math.sin(Date.now()/30000)*20));
-  const mist = Math.max(5, Math.round(25 + Math.cos(Date.now()/25000)*10));
-  const fan = Math.max(5, 100 - pump - mist);
-  donut.data.datasets[0].data = [pump,mist,fan];
-  donut.update('none');
-}
-
-// seed
-for(let i=0;i<labels.length;i++){updateUI();}
-setInterval(updateUI, 2000);
-
-// mode select
-const modeSelect = document.getElementById('modeSelect');
-const reqMode = document.getElementById('reqMode');
-modeSelect.addEventListener('change', ()=>{reqMode.textContent = modeSelect.value;});
-
-</script>
+    setInterval(updateData, 2000);
+  </script>
 </body>
 </html>
